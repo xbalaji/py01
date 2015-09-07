@@ -3,24 +3,24 @@
 import os.path
 import csv
 import json
+import pygal
 from optparse import OptionParser
+import code
 
-supported_extensions = [ ".csv", ".json", ".xml" ]
+input_extns = [ ".csv", ".json", ".xml" ]
+output_extns = [ ".png", ".svg" ]
 
 def read_file(filename):
     try:
         extension = os.path.splitext(filename)[1]
-        if extension not in supported_extensions:
-            raise Exception("Not a supported extension")
+        if extension not in input_extns:
+            raise Exception("Not a supported input extension")
 
         f = open(filename, 'r')
         if extension == ".csv" :
-            csv_r = csv.DictReader(f)
-            header = csv_r.fieldnames
-            g = lambda d: { d.keys()[0].strip(): d.values()[0].strip(),
-                            d.keys()[1].strip(): d.values()[1].strip() }
-            data = map(g, csv_r)
-            # data = [ ix for ix in csv_r]
+            csv_r = csv.reader(f)
+            header = next(csv_r)
+            data = map(lambda lst: dict(zip(header, lst)), csv_r)
         elif extension == ".json":
             pass
         else: # extension == ".xml":
@@ -40,22 +40,41 @@ def parse_args(args):
     parser.add_option("-i", "--ifile", type="string", action="store", 
         dest="iname", help="report file in csv/xml/json format")
     parser.add_option("-o", "--ofile", action="store", dest="oname", 
-        help="output file name")
+        default="xb-py", help="output file name")
     parser.add_option("-t", "--type", action="store", dest="type", 
-        default="png", help="export type svg, png, jpg, cdata")
+        default="svg", help="export type svg, png, jpg, cdata")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
         help="print verbose debugging")
     parser.add_option("-q", "--quiet",  action="store_false", dest="verbose",
         default=False, help="no output be quiet")
     return parser.parse_args(args)
 
+def create_output(chart, filename):
+    extension = os.path.splitext(filename)[1]
+    try:
+        if extension not in output_extns:
+            raise Exception("Not a supported output extension")
+
+        if extension == ".png" :
+            chart.render_to_png(filename)
+
+    except Exception, e:
+        raise Exception(str(e))
+    else:       # this is else for exception (if there is no exception)
+        pass
+    finally:    # this will always execute
+        pass
+    return
+
 def main(args = None):
     (options, args) = parse_args(args)
 
+    outfile = options.oname + '.' + options.type
     if options.verbose:
         print "iname: %s" % options.iname
         print "oname: %s" % options.oname
         print "type : %s" % options.type
+        print "output file : %s" % outfile
         print "args: %s" % args
         print "options: %s" % options
 
@@ -63,22 +82,36 @@ def main(args = None):
         parse_args(['-h'])
         exit(2)
 
-    # origdata = read_file(options.iname)
-    # header = origdata[0]
-    # data   = origdata[1:]
     try:
         header, data = read_file(options.iname)
-        # print header
+
         data = json.dumps(data)
-        print data
         data = json.loads(data)
-        print "keys: " 
-        x_axis = map(lambda d: d.values()[0], data)
-        y_axis = map(lambda d: d.values()[1], data)
-        print x_axis
-        print y_axis
+
+        colh = sorted(data[0].keys())
+        cols = dict()
+        for ix in colh:
+            cols[ix] = [ data[jx][ix] for jx in xrange(len(data))]
+
+        # for ix in colh:
+        #    print "cols[%s]: %s" % (ix, cols[ix])
+
+
+        it = iter(colh)
+        line_chart = pygal.Bar()
+        line_chart.x_labels = map(str, cols[next(it)])
+        # tmp = next(it)
+        # print "cols[%s]: %s" % (tmp, map(str, cols[tmp]))
+        for ix in it:
+            # print "cols[%s]: %s" % (ix, cols[ix])
+            line_chart.add(ix, map(int, cols[ix]))
+
+        # code.interact(local=locals())
+        # line_chart.render()
+        # line_chart.render_in_browser()
+        line_chart.render_to_file(outfile)
+        # line_chart.render_to_png(outfile)
         
-        # print json.dumps(data)
     except Exception, e:
         print str(e)
 
