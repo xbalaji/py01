@@ -22,7 +22,8 @@ def read_file(filename):
             header = next(csv_r)
             data = map(lambda lst: dict(zip(header, lst)), csv_r)
         elif extension == ".json":
-            pass
+            data = json.load(f)
+            header = sorted(data[0].keys())
         else: # extension == ".xml":
             raise Exception("XML not supported at this time")
             pass
