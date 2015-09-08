@@ -7,18 +7,9 @@ import random
 import csv
 import json
 
-# global constants
-# header="x,y1,y2,y3,y4,y5,y6,y7,y8,y9,y10"
-# header="x"
-
-# global variables
-# max_rows = 5
-# max_cols = 4
-# offset = 1
-# filename = 'sample'
-
 y = lambda x,num_rows: random.sample(range(x*10, x*20), num_rows)
 y = lambda x,num_rows: [ random.choice(xrange(11)) for ix in xrange(num_rows) ]
+#y = lambda x,num_rows: [ random.choice(xrange(10*x, (10*x)+2)) for ix in xrange(num_rows) ]
 
 # csv_data is two dimensional array with header on top
 def create_csv_file(fname, csv_data):

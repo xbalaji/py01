@@ -8,13 +8,13 @@ from optparse import OptionParser
 import code
 
 input_extns = [ ".csv", ".json", ".xml" ]
-output_extns = [ ".png", ".svg" ]
+output_extns = [ ".svg" ]
 
 def read_file(filename):
     try:
         extension = os.path.splitext(filename)[1]
         if extension not in input_extns:
-            raise Exception("Not a supported input extension")
+            raise Exception("Reading files of this type not supported yet")
 
         f = open(filename, 'r')
         if extension == ".csv" :
@@ -50,14 +50,36 @@ def parse_args(args):
         default=False, help="no output be quiet")
     return parser.parse_args(args)
 
-def create_output(chart, filename):
-    extension = os.path.splitext(filename)[1]
+def print_json_dict(cols):
+    print "json converted to dict/row: "
+    for ix in sorted(cols.keys()):
+        print "cols['%s']: %s" % (ix, cols[ix])
+    return
+
+def print_cmdline_params(options):
+    print "iname: %s" % options.iname
+    print "oname: %s" % options.oname
+    print "type : %s" % options.type
+    print "output file : %s" % (options.oname + '.' + options.type)
+    print "args: %s" % args
+    print "options: %s" % options
+    return
+
+def create_output(chart, filename, extension):
+
+    extension = "." + extension
+    filename += extension
     try:
+        output = None
         if extension not in output_extns:
-            raise Exception("Not a supported output extension")
+            raise Exception("Output of this type not supported yet")
 
         if extension == ".png" :
             chart.render_to_png(filename)
+        elif extension == ".svg" :
+            chart.render_to_file(filename)
+        else:
+            output = chart.render()
 
     except Exception, e:
         raise Exception(str(e))
@@ -65,19 +87,36 @@ def create_output(chart, filename):
         pass
     finally:    # this will always execute
         pass
-    return
+    return output
+
+def json_to_dict(data):
+    colh = sorted(data[0].keys())
+    cols = dict()
+    for ix in colh:
+        cols[ix] = [ data[jx][ix] for jx in xrange(len(data))]
+    return cols
+
+# create chart from the c_data, which is a dictionary
+def create_chart(c_data, c_type = "stbar", title = None):
+    title = "xbalaji - pygal demo"
+    if c_type == "line":
+        line_chart = pygal.Line(title=title)
+    elif c_type == "bar":
+        line_chart = pygal.Bar(title=title)
+    else:
+        line_chart = pygal.StackedBar(title=title)
+
+    it = iter(sorted(c_data.keys()))
+    line_chart.x_labels = map(str, c_data[next(it)])
+    for ix in it:
+        line_chart.add(ix, map(int, c_data[ix]))
+    return line_chart
 
 def main(args = None):
     (options, args) = parse_args(args)
 
-    outfile = options.oname + '.' + options.type
     if options.verbose:
-        print "iname: %s" % options.iname
-        print "oname: %s" % options.oname
-        print "type : %s" % options.type
-        print "output file : %s" % outfile
-        print "args: %s" % args
-        print "options: %s" % options
+        print_cmdline_params(options)
 
     if options.iname is None:
         parse_args(['-h'])
@@ -86,32 +125,21 @@ def main(args = None):
     try:
         header, data = read_file(options.iname)
 
-        data = json.dumps(data)
+        data = json.dumps(data, sort_keys = True, indent=2)
+        if options.verbose:
+            print "stringfied: ", data
+
         data = json.loads(data)
+        if options.verbose:
+            print "jsonified data: ", data
 
-        colh = sorted(data[0].keys())
-        cols = dict()
-        for ix in colh:
-            cols[ix] = [ data[jx][ix] for jx in xrange(len(data))]
-
-        # for ix in colh:
-        #    print "cols[%s]: %s" % (ix, cols[ix])
-
-
-        it = iter(colh)
-        line_chart = pygal.Bar()
-        line_chart.x_labels = map(str, cols[next(it)])
-        # tmp = next(it)
-        # print "cols[%s]: %s" % (tmp, map(str, cols[tmp]))
-        for ix in it:
-            # print "cols[%s]: %s" % (ix, cols[ix])
-            line_chart.add(ix, map(int, cols[ix]))
+        cols = json_to_dict(data)
+        if options.verbose:
+            print_json_dict(cols)
 
         # code.interact(local=locals())
-        # line_chart.render()
-        # line_chart.render_in_browser()
-        line_chart.render_to_file(outfile)
-        # line_chart.render_to_png(outfile)
+        chart = create_chart(cols)
+        create_output(chart, options.oname, options.type)
         
     except Exception, e:
         print str(e)
