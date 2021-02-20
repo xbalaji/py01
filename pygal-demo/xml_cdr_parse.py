@@ -1,4 +1,4 @@
-#! /ws/xbalaji-sjc/python/bin/python
+#! /usr/bin/env python
 
 import glob
 import time
